@@ -1,53 +1,58 @@
+from select import select
 import streamlit as st
 import pandas as pd
-
 import psycopg2
-import os
-from dotenv import load_dotenv
-
-st.write("# test입니다.")
-view = [100, 150, 30]
-view
-
-st.bar_chart(view)
-
-sview = pd.Series(view)
-sview
+from streamlit_option_menu import option_menu
 
 
-st.write('# test2입니다.')
+## 사이드 바
+with st.sidebar:
+    selected = option_menu(
+        menu_title="Main Menu",
+        # menu_title=None,
+        options = ["Home", "Project", "Contact"],
+        menu_icon="cast",
+        default_index=0,
+    )
 
-## 환경설정
-load_dotenv()
-host = os.environ.get('host')
-database = os.environ.get('database')
-user = os.environ.get('user')
-password = os.environ.get('password')
+if selected == "Home" :
+    st.title(f"You have selected {selected}")
+if selected == "Project" :
+    st.title(f"You have selected {selected}")
+if selected == "Contact" :
+    st.title(f"You have selected {selected}")
 
-conn = psycopg2.connect(
-    host = host,
-    database = database,
-    user = user,
-    password = password )
+## nav 바
+# selected = option_menu(
+#         # menu_title="Main Menu",
+#         menu_title=None,
+#         options = ["Home", "Project", "Contact"],
+#         menu_icon="cast",
+#         default_index=0,
+#         orientation = 'horizontal',
+#     )
 
-cur = conn.cursor()
 
-## DB 데이터 불러오기
-def load_sql(cur) :
-    ## 가장 최근 저장된 기사 타이틀 100개 불러오기
-    cur.execute("""select title from dandok
+# Initialize connection.
+# Uses st.experimental_singleton to only run once.
+@st.experimental_singleton
+def init_connection():
+    return psycopg2.connect(**st.secrets["postgres"])
+
+conn = init_connection()
+
+# Perform query.
+# Uses st.experimental_memo to only rerun when the query changes or after 10 min.
+@st.experimental_memo(ttl=600)
+def run_query(query):
+    with conn.cursor() as cur:
+        cur.execute(query)
+        return cur.fetchall()
+
+rows = run_query("""select title from dandok
     order by id desc
-    limit 1;""")
-    result = cur.fetchall()    
-    ls = []
-    print("스크래핑을 시작합니다. \n")
-    print("우선 DB에 최근 저장된 기사를 불러옵니다.\n")
-    for i in range(len(result)) :
-        ls.append(result[i][0])
-        print(f"#{i+1}", result[i][0])
-    print("\nDB 불러오기 종료! \n")
-    return ls
+    limit 5""")
 
-ls = load_sql(cur)
-
-st.write(ls)
+# Print results.
+for i in rows :
+    st.write(f"{i[0]}")
